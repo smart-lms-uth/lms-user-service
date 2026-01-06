@@ -82,7 +82,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         user.setAuthProvider(userInfo.getProvider());
         user.setProviderId(userInfo.getId());
         user.setEmailVerified(true); // OAuth2 emails are verified
-        user.setRole(Role.USER);
+        user.setRole(Role.STUDENT); // Mặc định đăng ký là STUDENT
         user.setEnabled(true);
         // Password is null for OAuth2 users
 

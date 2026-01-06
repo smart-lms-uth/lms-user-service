@@ -3,15 +3,20 @@ package uth.edu.vn.lms_user_service.service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import uth.edu.vn.lms_user_service.dto.UpdateProfileRequest;
 import uth.edu.vn.lms_user_service.dto.UserResponse;
+import uth.edu.vn.lms_user_service.entity.ActivityType;
+import uth.edu.vn.lms_user_service.entity.Role;
 import uth.edu.vn.lms_user_service.entity.User;
 import uth.edu.vn.lms_user_service.exception.ResourceNotFoundException;
 import uth.edu.vn.lms_user_service.repository.UserRepository;
 
 import java.time.Duration;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * User Service with Cache-Aside Pattern
@@ -28,10 +33,15 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final RedisTemplate<String, Object> redisTemplate;
+    private final PasswordEncoder passwordEncoder;
+    private final ActivityService activityService;
 
-    public UserService(UserRepository userRepository, RedisTemplate<String, Object> redisTemplate) {
+    public UserService(UserRepository userRepository, RedisTemplate<String, Object> redisTemplate, 
+                       PasswordEncoder passwordEncoder, ActivityService activityService) {
         this.userRepository = userRepository;
         this.redisTemplate = redisTemplate;
+        this.passwordEncoder = passwordEncoder;
+        this.activityService = activityService;
     }
 
     /**
@@ -117,6 +127,67 @@ public class UserService {
     }
 
     /**
+     * Check if user has a password set
+     */
+    @Transactional(readOnly = true)
+    public boolean hasPassword(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+        return user.getPassword() != null && !user.getPassword().isBlank();
+    }
+
+    /**
+     * Set password for OAuth account (first time only)
+     */
+    public void setPassword(Long userId, String newPassword) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+        
+        if (user.getPassword() != null && !user.getPassword().isBlank()) {
+            throw new IllegalStateException("Password already set. Use change-password endpoint instead.");
+        }
+        
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+        
+        // Invalidate cache
+        invalidateUserCache(userId);
+        
+        // Log activity
+        activityService.logSystemActivity(userId, ActivityType.PASSWORD_SET, "set-password", 
+            String.format("{\"authProvider\":\"%s\"}", user.getAuthProvider()));
+        
+        log.info("Password set for OAuth user: {}", user.getUsername());
+    }
+
+    /**
+     * Change password (requires current password verification)
+     */
+    public void changePassword(Long userId, String currentPassword, String newPassword) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+        
+        if (user.getPassword() == null || user.getPassword().isBlank()) {
+            throw new IllegalStateException("No password set. Use set-password endpoint instead.");
+        }
+        
+        if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
+            throw new IllegalArgumentException("Current password is incorrect.");
+        }
+        
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+        
+        // Invalidate cache
+        invalidateUserCache(userId);
+        
+        // Log activity
+        activityService.logSystemActivity(userId, ActivityType.PASSWORD_CHANGE, "change-password", null);
+        
+        log.info("Password changed for user: {}", user.getUsername());
+    }
+
+    /**
      * Invalidate user cache on any write operation
      */
     private void invalidateUserCache(Long userId) {
@@ -151,5 +222,47 @@ public class UserService {
         if (request.address() != null) {
             user.setAddress(request.address());
         }
+    }
+
+    // ==================== Internal API Methods (for inter-service communication) ====================
+
+    /**
+     * Get user by ID (internal use - no cache)
+     */
+    @Transactional(readOnly = true)
+    public UserResponse getUserById(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+        return UserResponse.fromUser(user);
+    }
+
+    /**
+     * Get multiple users by IDs (batch lookup)
+     */
+    @Transactional(readOnly = true)
+    public List<UserResponse> getUsersByIds(List<Long> userIds) {
+        return userRepository.findByIdIn(userIds).stream()
+                .map(UserResponse::fromUser)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Get all active teachers
+     */
+    @Transactional(readOnly = true)
+    public List<UserResponse> getAllTeachers() {
+        return userRepository.findActiveUsersByRole(Role.TEACHER).stream()
+                .map(UserResponse::fromUser)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Get all active students
+     */
+    @Transactional(readOnly = true)
+    public List<UserResponse> getAllStudents() {
+        return userRepository.findActiveUsersByRole(Role.STUDENT).stream()
+                .map(UserResponse::fromUser)
+                .collect(Collectors.toList());
     }
 }

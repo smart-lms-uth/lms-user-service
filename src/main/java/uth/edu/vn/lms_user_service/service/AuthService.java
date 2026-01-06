@@ -19,6 +19,11 @@ import uth.edu.vn.lms_user_service.entity.User;
 import uth.edu.vn.lms_user_service.exception.ApiException;
 import uth.edu.vn.lms_user_service.repository.UserRepository;
 
+import java.util.HashMap;
+import java.util.Map;
+
+import java.time.LocalDateTime;
+
 @Service
 public class AuthService {
 
@@ -60,7 +65,7 @@ public class AuthService {
         user.setPassword(passwordEncoder.encode(request.password()));
         user.setFullName(request.fullName());
         user.setPhoneNumber(request.phoneNumber());
-        user.setRole(Role.USER);
+        user.setRole(Role.STUDENT); // Mặc định đăng ký là STUDENT
         user.setEnabled(true);
 
         User savedUser = userRepository.save(user);
@@ -80,7 +85,17 @@ public class AuthService {
         );
 
         User user = (User) authentication.getPrincipal();
-        String token = jwtUtil.generateToken(user);
+        
+        // Cập nhật lastLoginAt
+        user.setLastLoginAt(LocalDateTime.now());
+        userRepository.save(user);
+        
+        // Add userId and role to JWT claims
+        Map<String, Object> extraClaims = new HashMap<>();
+        extraClaims.put("userId", user.getId());
+        extraClaims.put("role", user.getRole().name());
+        
+        String token = jwtUtil.generateToken(extraClaims, user);
 
         log.info("User authenticated successfully: {}", user.getUsername());
 

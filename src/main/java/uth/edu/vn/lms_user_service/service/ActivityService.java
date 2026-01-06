@@ -44,6 +44,39 @@ public class ActivityService {
     }
 
     /**
+     * Log a system-generated activity (no HTTP context)
+     * Used for backend events like password changes, system notifications, etc.
+     */
+    public void logSystemActivity(Long userId, uth.edu.vn.lms_user_service.entity.ActivityType activityType, String action, String metadata) {
+        ActivityRequest request = new ActivityRequest(
+            null, // sessionId
+            activityType,
+            action,
+            null, // pageUrl
+            null, // pageTitle
+            null, // elementId
+            null, // elementText
+            null, // apiEndpoint
+            null, // httpMethod
+            null, // responseStatus
+            null, // responseTimeMs
+            metadata,
+            null, // deviceType
+            null, // browser
+            null, // os
+            null, // screenWidth
+            null, // screenHeight
+            null, // durationMs
+            LocalDateTime.now(VIETNAM_ZONE)
+        );
+        
+        ActivityMessage message = ActivityMessage.from(userId, request, "system", "system");
+        activityProducer.sendActivity(message);
+        
+        log.debug("Queued system activity: {} for user: {}", activityType, userId);
+    }
+
+    /**
      * Log a single activity (async via RabbitMQ)
      */
     public ActivityResponse logActivity(Long userId, ActivityRequest request, HttpServletRequest httpRequest) {

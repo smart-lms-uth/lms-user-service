@@ -13,6 +13,8 @@ import uth.edu.vn.lms_user_service.config.JwtUtil;
 import uth.edu.vn.lms_user_service.entity.User;
 
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Handler for successful OAuth2 authentication
@@ -39,7 +41,12 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         CustomOAuth2User oAuth2User = (CustomOAuth2User) authentication.getPrincipal();
         User user = oAuth2User.getUser();
 
-        String token = jwtUtil.generateToken(user);
+        // Add userId and role to JWT claims
+        Map<String, Object> extraClaims = new HashMap<>();
+        extraClaims.put("userId", user.getId());
+        extraClaims.put("role", user.getRole().name());
+        
+        String token = jwtUtil.generateToken(extraClaims, user);
         log.info("OAuth2 login successful for user: {}", user.getEmail());
 
         // Option 1: Redirect to frontend with token in URL (for web apps)

@@ -30,7 +30,7 @@ public class RedisConfig {
     public static final String USER_CACHE = "users";
     public static final Duration USER_CACHE_TTL = Duration.ofHours(1);
 
-    @Bean
+    @Bean("redisObjectMapper")
     public ObjectMapper redisObjectMapper() {
         ObjectMapper mapper = new ObjectMapper();
         mapper.registerModule(new JavaTimeModule());

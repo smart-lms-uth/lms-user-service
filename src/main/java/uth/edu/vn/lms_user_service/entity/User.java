@@ -38,7 +38,7 @@ public class User implements UserDetails {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private Role role = Role.USER;
+    private Role role = Role.STUDENT;
 
     // OAuth2 fields
     @Enumerated(EnumType.STRING)
@@ -80,6 +80,9 @@ public class User implements UserDetails {
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
+
+    @Column(name = "last_login_at")
+    private LocalDateTime lastLoginAt;
 
     // Constructors
     public User() {}
@@ -273,5 +276,13 @@ public class User implements UserDetails {
 
     public void setAddress(String address) {
         this.address = address;
+    }
+
+    public LocalDateTime getLastLoginAt() {
+        return lastLoginAt;
+    }
+
+    public void setLastLoginAt(LocalDateTime lastLoginAt) {
+        this.lastLoginAt = lastLoginAt;
     }
 }

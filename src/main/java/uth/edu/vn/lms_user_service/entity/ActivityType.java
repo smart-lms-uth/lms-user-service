@@ -9,6 +9,8 @@ public enum ActivityType {
     LOGOUT,
     LOGIN_FAILED,
     PASSWORD_RESET,
+    PASSWORD_SET,
+    PASSWORD_CHANGE,
     
     // Navigation
     PAGE_VIEW,

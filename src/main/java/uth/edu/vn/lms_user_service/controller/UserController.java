@@ -77,8 +77,53 @@ public class UserController {
     public ResponseEntity<ApiResponse<ProfileStatusResponse>> getProfileStatus(Authentication authentication) {
         User user = (User) authentication.getPrincipal();
         boolean isComplete = userService.isProfileComplete(user.getId());
-        return ResponseEntity.ok(ApiResponse.success(new ProfileStatusResponse(isComplete)));
+        boolean hasPassword = userService.hasPassword(user.getId());
+        return ResponseEntity.ok(ApiResponse.success(new ProfileStatusResponse(isComplete, hasPassword)));
     }
 
-    public record ProfileStatusResponse(boolean profileComplete) {}
+    @PostMapping("/profile/set-password")
+    @Operation(summary = "Set password for OAuth account (allows login with username/password)")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Password set successfully"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid password or already has password"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Not authenticated")
+    })
+    public ResponseEntity<ApiResponse<String>> setPassword(
+            Authentication authentication,
+            @Valid @RequestBody SetPasswordRequest request) {
+        User user = (User) authentication.getPrincipal();
+        userService.setPassword(user.getId(), request.password());
+        return ResponseEntity.ok(ApiResponse.success("Password set successfully. You can now login with username/password."));
+    }
+
+    @PostMapping("/profile/change-password")
+    @Operation(summary = "Change password (requires current password)")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Password changed successfully"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid current password or new password"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Not authenticated")
+    })
+    public ResponseEntity<ApiResponse<String>> changePassword(
+            Authentication authentication,
+            @Valid @RequestBody ChangePasswordRequest request) {
+        User user = (User) authentication.getPrincipal();
+        userService.changePassword(user.getId(), request.currentPassword(), request.newPassword());
+        return ResponseEntity.ok(ApiResponse.success("Password changed successfully."));
+    }
+
+    public record ProfileStatusResponse(boolean profileComplete, boolean hasPassword) {}
+    
+    public record SetPasswordRequest(
+        @jakarta.validation.constraints.NotBlank(message = "Password is required")
+        @jakarta.validation.constraints.Size(min = 6, message = "Password must be at least 6 characters")
+        String password
+    ) {}
+    
+    public record ChangePasswordRequest(
+        @jakarta.validation.constraints.NotBlank(message = "Current password is required")
+        String currentPassword,
+        @jakarta.validation.constraints.NotBlank(message = "New password is required")
+        @jakarta.validation.constraints.Size(min = 6, message = "New password must be at least 6 characters")
+        String newPassword
+    ) {}
 }
