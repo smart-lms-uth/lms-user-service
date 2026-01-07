@@ -13,6 +13,7 @@ import uth.edu.vn.lms_user_service.dto.ActivityRequest;
 import uth.edu.vn.lms_user_service.dto.ActivityResponse;
 import uth.edu.vn.lms_user_service.dto.ActivityStatsResponse;
 import uth.edu.vn.lms_user_service.dto.ApiResponse;
+import uth.edu.vn.lms_user_service.dto.CourseActivityResponse;
 import uth.edu.vn.lms_user_service.entity.User;
 import uth.edu.vn.lms_user_service.service.ActivityService;
 
@@ -124,5 +125,59 @@ public class ActivityController {
         
         Page<ActivityResponse> activities = activityService.getUserActivities(userId, page, size);
         return ResponseEntity.ok(ApiResponse.success("User activities retrieved", activities));
+    }
+
+    /**
+     * Get student activities for a specific course (For instructors)
+     * Returns activities with Vietnamese formatted titles
+     */
+    @GetMapping("/course/{courseId}/student/{studentId}")
+    @Operation(summary = "Get student activities for a specific course")
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<ApiResponse<Page<CourseActivityResponse>>> getCourseStudentActivities(
+            @PathVariable Long courseId,
+            @PathVariable Long studentId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String activityType) {
+        
+        Page<CourseActivityResponse> activities;
+        if (activityType != null && !activityType.isEmpty()) {
+            activities = activityService.getCourseStudentActivitiesByType(studentId, courseId, activityType, page, size);
+        } else {
+            activities = activityService.getCourseStudentActivities(studentId, courseId, page, size);
+        }
+        return ResponseEntity.ok(ApiResponse.success("Student course activities retrieved", activities));
+    }
+
+    /**
+     * Get all student activities for a course (no activity type filter)
+     */
+    @GetMapping("/course/{courseId}/student/{studentId}/all")
+    @Operation(summary = "Get all student activities for a specific course")
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<ApiResponse<Page<CourseActivityResponse>>> getAllCourseStudentActivities(
+            @PathVariable Long courseId,
+            @PathVariable Long studentId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        
+        Page<CourseActivityResponse> activities = activityService.getAllCourseStudentActivities(studentId, courseId, page, size);
+        return ResponseEntity.ok(ApiResponse.success("All student course activities retrieved", activities));
+    }
+
+    /**
+     * Get last access time for all students in a course
+     * Returns a map of studentId -> last access timestamp
+     * Used for displaying last access in student list
+     */
+    @GetMapping("/course/{courseId}/students/last-access")
+    @Operation(summary = "Get last access time for all students in a course")
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<ApiResponse<java.util.Map<Long, LocalDateTime>>> getCourseStudentsLastAccess(
+            @PathVariable Long courseId) {
+        
+        java.util.Map<Long, LocalDateTime> lastAccessMap = activityService.getCourseStudentsLastAccess(courseId);
+        return ResponseEntity.ok(ApiResponse.success("Students last access retrieved", lastAccessMap));
     }
 }

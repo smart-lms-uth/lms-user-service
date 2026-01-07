@@ -2,6 +2,7 @@ package uth.edu.vn.lms_user_service.dto;
 
 import java.io.Serializable;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.util.Map;
 
 /**
@@ -43,6 +44,17 @@ public record ActivityMessage(
             }
         }
 
+        // Use Vietnam timezone for timestamp
+        ZoneId vietnamZone = ZoneId.of("Asia/Ho_Chi_Minh");
+        Instant timestamp;
+        if (request.timestamp() != null) {
+            // Frontend sends LocalDateTime in Vietnam local time
+            // Convert to Instant by treating it as Vietnam timezone
+            timestamp = request.timestamp().atZone(vietnamZone).toInstant();
+        } else {
+            timestamp = Instant.now();
+        }
+
         return new ActivityMessage(
             userId,
             request.sessionId(),
@@ -64,7 +76,7 @@ public record ActivityMessage(
             request.os(),
             request.screenWidth(),
             request.screenHeight(),
-            request.timestamp() != null ? request.timestamp().toInstant(java.time.ZoneOffset.UTC) : Instant.now(),
+            timestamp,
             request.durationMs()
         );
     }

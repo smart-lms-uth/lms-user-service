@@ -1,4 +1,5 @@
 # Multi-stage build để tự động build project
+# Optimized for Docker layer caching
 
 # Stage 1: Build với Maven
 FROM eclipse-temurin:21-jdk-alpine AS builder
@@ -14,14 +15,16 @@ COPY pom.xml .
 # Cấp quyền thực thi cho mvnw
 RUN chmod +x ./mvnw
 
-# Download dependencies (layer này sẽ được cache)
-RUN ./mvnw dependency:go-offline -B
+# Download dependencies với cache mount (layer này sẽ được cache)
+RUN --mount=type=cache,target=/root/.m2 \
+    ./mvnw dependency:go-offline -B
 
 # Copy source code
 COPY src ./src
 
-# Build project
-RUN ./mvnw clean package -DskipTests -B
+# Build project với cache mount
+RUN --mount=type=cache,target=/root/.m2 \
+    ./mvnw clean package -DskipTests -B
 
 # Stage 2: Runtime image (sử dụng JRE thay vì JDK để giảm kích thước)
 FROM eclipse-temurin:21-jre-alpine

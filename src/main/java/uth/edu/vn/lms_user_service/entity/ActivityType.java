@@ -57,6 +57,12 @@ public enum ActivityType {
     COURSE_COMPLETE,
     COURSE_PROGRESS,
     
+    // Section - Phần học
+    SECTION_VIEW,
+    
+    // Lesson - Bài học
+    LESSON_VIEW,
+    
     // Assignment - Bài tập
     ASSIGNMENT_VIEW,
     ASSIGNMENT_START,

@@ -45,4 +45,21 @@ public interface ActivityLogRepository extends MongoRepository<ActivityLog, Stri
 
     // Delete old activities (for cleanup job)
     void deleteByTimestampBefore(Instant before);
+
+    // Find by user and courseId in metadata (for course-specific activities)
+    // courseId is stored as String in metadata from frontend
+    @Query("{ 'userId': ?0, 'metadata.courseId': ?1 }")
+    List<ActivityLog> findByUserIdAndCourseId(Long userId, String courseId);
+
+    // Find by user and courseId with pagination
+    @Query("{ 'userId': ?0, 'metadata.courseId': ?1 }")
+    Page<ActivityLog> findByUserIdAndCourseIdOrderByTimestampDesc(Long userId, String courseId, Pageable pageable);
+
+    // Find course-related activities by user
+    @Query("{ 'userId': ?0, 'metadata.courseId': ?1, 'activityType': { $in: ?2 } }")
+    Page<ActivityLog> findByUserIdAndCourseIdAndActivityTypeIn(Long userId, String courseId, List<String> activityTypes, Pageable pageable);
+
+    // Find all activities for a course (ordered by timestamp desc for getting latest per user)
+    @Query("{ 'metadata.courseId': ?0 }")
+    List<ActivityLog> findByCourseIdOrderByTimestampDesc(String courseId);
 }

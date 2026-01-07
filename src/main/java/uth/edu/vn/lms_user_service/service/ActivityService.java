@@ -12,6 +12,7 @@ import uth.edu.vn.lms_user_service.dto.ActivityMessage;
 import uth.edu.vn.lms_user_service.dto.ActivityRequest;
 import uth.edu.vn.lms_user_service.dto.ActivityResponse;
 import uth.edu.vn.lms_user_service.dto.ActivityStatsResponse;
+import uth.edu.vn.lms_user_service.dto.CourseActivityResponse;
 import uth.edu.vn.lms_user_service.messaging.ActivityProducer;
 import uth.edu.vn.lms_user_service.repository.ActivityLogRepository;
 
@@ -271,5 +272,77 @@ public class ActivityService {
         Instant cutoff = Instant.now().minus(Duration.ofDays(daysToKeep));
         activityLogRepository.deleteByTimestampBefore(cutoff);
         log.info("Cleaned up activities older than {} days", daysToKeep);
+    }
+
+    /**
+     * Get student activities for a specific course (for instructor viewing)
+     * Returns activities with Vietnamese formatted titles
+     */
+    public Page<CourseActivityResponse> getCourseStudentActivities(Long studentId, Long courseId, int page, int size) {
+        Pageable pageable = PageRequest.of(page, Math.min(size, 100));
+        String courseIdStr = String.valueOf(courseId);
+        
+        // Course-related activity types
+        List<String> courseActivityTypes = Arrays.asList(
+            "COURSE_VIEW", "COURSE_ENROLL", "COURSE_COMPLETE",
+            "SECTION_VIEW", "SECTION_COMPLETE",
+            "LESSON_VIEW", "MODULE_VIEW", "MODULE_COMPLETE",
+            "QUIZ_VIEW", "QUIZ_START", "QUIZ_ANSWER", "QUIZ_SUBMIT", "QUIZ_RESULT_VIEW",
+            "ASSIGNMENT_VIEW", "ASSIGNMENT_START", "ASSIGNMENT_SUBMIT", "ASSIGNMENT_GRADE_VIEW",
+            "VIDEO_PLAY", "VIDEO_PAUSE", "VIDEO_COMPLETE", "VIDEO_SEEK",
+            "DOCUMENT_VIEW", "DOCUMENT_DOWNLOAD",
+            "DISCUSSION_VIEW", "DISCUSSION_POST", "DISCUSSION_REPLY"
+        );
+        
+        return activityLogRepository
+            .findByUserIdAndCourseIdAndActivityTypeIn(studentId, courseIdStr, courseActivityTypes, pageable)
+            .map(CourseActivityResponse::fromDocument);
+    }
+
+    /**
+     * Get all student activities for a course (no activity type filter)
+     */
+    public Page<CourseActivityResponse> getAllCourseStudentActivities(Long studentId, Long courseId, int page, int size) {
+        Pageable pageable = PageRequest.of(page, Math.min(size, 100));
+        String courseIdStr = String.valueOf(courseId);
+        return activityLogRepository
+            .findByUserIdAndCourseIdOrderByTimestampDesc(studentId, courseIdStr, pageable)
+            .map(CourseActivityResponse::fromDocument);
+    }
+
+    /**
+     * Get student activities for a course filtered by activity type
+     */
+    public Page<CourseActivityResponse> getCourseStudentActivitiesByType(Long studentId, Long courseId, String activityType, int page, int size) {
+        Pageable pageable = PageRequest.of(page, Math.min(size, 100));
+        String courseIdStr = String.valueOf(courseId);
+        List<String> types = Collections.singletonList(activityType);
+        return activityLogRepository
+            .findByUserIdAndCourseIdAndActivityTypeIn(studentId, courseIdStr, types, pageable)
+            .map(CourseActivityResponse::fromDocument);
+    }
+
+    /**
+     * Get last access time for all students in a course
+     * Returns a map of studentId -> last access timestamp
+     */
+    public Map<Long, LocalDateTime> getCourseStudentsLastAccess(Long courseId) {
+        // Get all activities for this course (courseId stored as String in metadata)
+        String courseIdStr = String.valueOf(courseId);
+        List<ActivityLog> activities = activityLogRepository.findByCourseIdOrderByTimestampDesc(courseIdStr);
+        
+        // Group by userId and get the most recent timestamp for each
+        Map<Long, LocalDateTime> lastAccessMap = new HashMap<>();
+        
+        for (ActivityLog activity : activities) {
+            Long userId = activity.getUserId();
+            if (userId != null && !lastAccessMap.containsKey(userId)) {
+                // Convert Instant to LocalDateTime in Vietnam timezone
+                LocalDateTime accessTime = LocalDateTime.ofInstant(activity.getTimestamp(), VIETNAM_ZONE);
+                lastAccessMap.put(userId, accessTime);
+            }
+        }
+        
+        return lastAccessMap;
     }
 }
