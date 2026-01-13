@@ -1,7 +1,5 @@
 package uth.edu.vn.lms_user_service.config;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -12,23 +10,16 @@ import uth.edu.vn.lms_user_service.entity.Role;
 import uth.edu.vn.lms_user_service.entity.User;
 import uth.edu.vn.lms_user_service.repository.UserRepository;
 
-/**
- * Data Seeder - Tự động tạo tài khoản ADMIN mặc định khi khởi động lần đầu
- */
 @Configuration
 public class DataSeeder {
-
-    private static final Logger log = LoggerFactory.getLogger(DataSeeder.class);
 
     @Bean
     CommandLineRunner initDatabase(UserRepository userRepository, 
                                    PasswordEncoder passwordEncoder,
                                    Environment env) {
         return args -> {
-            // Tạo Admin mặc định nếu chưa có
             createDefaultAdmin(userRepository, passwordEncoder, env);
             
-            // Tạo Teacher mẫu nếu chưa có (optional, cho development)
             if (isDevProfile(env)) {
                 createSampleTeacher(userRepository, passwordEncoder);
                 createSampleStudent(userRepository, passwordEncoder);
@@ -56,11 +47,6 @@ public class DataSeeder {
             admin.setProfileCompleted(true);
 
             userRepository.save(admin);
-            log.info("✅ Default ADMIN account created: {}", adminEmail);
-            log.info("   Username: {}", adminUsername);
-            log.info("   Password: {} (Please change after first login!)", adminPassword);
-        } else {
-            log.info("ℹ️ Admin account already exists, skipping creation");
         }
     }
 
@@ -79,7 +65,6 @@ public class DataSeeder {
             teacher.setEmailVerified(true);
 
             userRepository.save(teacher);
-            log.info("✅ Sample TEACHER account created: {}", teacherEmail);
         }
     }
 
@@ -98,7 +83,6 @@ public class DataSeeder {
             student.setEmailVerified(true);
 
             userRepository.save(student);
-            log.info("✅ Sample STUDENT account created: {}", studentEmail);
         }
     }
 
@@ -109,7 +93,6 @@ public class DataSeeder {
                 return true;
             }
         }
-        // Nếu không có profile nào active, coi như là dev
         return activeProfiles.length == 0;
     }
 }

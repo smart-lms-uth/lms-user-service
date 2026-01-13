@@ -1,7 +1,5 @@
 package uth.edu.vn.lms_user_service.security.oauth2;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
@@ -14,13 +12,8 @@ import uth.edu.vn.lms_user_service.repository.UserRepository;
 
 import java.util.Optional;
 
-/**
- * Custom OAuth2 User Service to process OAuth2 login
- */
 @Service
 public class CustomOAuth2UserService extends DefaultOAuth2UserService {
-
-    private static final Logger log = LoggerFactory.getLogger(CustomOAuth2UserService.class);
 
     private final UserRepository userRepository;
 
@@ -31,10 +24,7 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
     @Override
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
         OAuth2User oAuth2User = super.loadUser(userRequest);
-
         String registrationId = userRequest.getClientRegistration().getRegistrationId();
-        log.info("OAuth2 login attempt from provider: {}", registrationId);
-
         return processOAuth2User(registrationId, oAuth2User);
     }
 
@@ -51,23 +41,17 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         if (existingUser.isPresent()) {
             user = existingUser.get();
             
-            // Check if user signed up with different provider
             if (user.getAuthProvider() == AuthProvider.LOCAL) {
-                // Link the OAuth2 account to existing local account
                 user = updateExistingUser(user, userInfo);
-                log.info("Linked OAuth2 account to existing local user: {}", user.getEmail());
             } else if (user.getAuthProvider() != userInfo.getProvider()) {
                 throw new OAuth2AuthenticationException(
                         "You have already signed up with " + user.getAuthProvider() + 
                         ". Please use your " + user.getAuthProvider() + " account to login.");
             } else {
-                // Update user info
                 user = updateExistingUser(user, userInfo);
             }
         } else {
-            // Register new user
             user = registerNewUser(userInfo);
-            log.info("Registered new OAuth2 user: {}", user.getEmail());
         }
 
         return new CustomOAuth2User(user, oAuth2User.getAttributes());

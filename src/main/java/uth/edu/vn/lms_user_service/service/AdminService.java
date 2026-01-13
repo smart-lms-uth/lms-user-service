@@ -1,134 +1,100 @@
 package uth.edu.vn.lms_user_service.service;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import uth.edu.vn.lms_user_service.dto.AdminUserDTO;
+import uth.edu.vn.lms_user_service.dto.UserStatisticsResponse;
+import uth.edu.vn.lms_user_service.dto.AdminUpdateUserRequest;
 import uth.edu.vn.lms_user_service.entity.Role;
 import uth.edu.vn.lms_user_service.entity.User;
+import uth.edu.vn.lms_user_service.exception.ApiException;
+import uth.edu.vn.lms_user_service.exception.ResourceNotFoundException;
 import uth.edu.vn.lms_user_service.repository.UserRepository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
-/**
- * Service cho Admin quản lý users
- */
 @Service
 @Transactional
-public class AdminService {
-
-    private static final Logger log = LoggerFactory.getLogger(AdminService.class);
+public class AdminService implements IAdminService {
     
     private final UserRepository userRepository;
+    private final EmailService emailService;
 
-    public AdminService(UserRepository userRepository) {
+    public AdminService(UserRepository userRepository, EmailService emailService) {
         this.userRepository = userRepository;
+        this.emailService = emailService;
     }
 
-    /**
-     * Lấy danh sách tất cả users (có phân trang)
-     */
+    @Override
     @Transactional(readOnly = true)
     public Page<AdminUserDTO> getAllUsers(Pageable pageable) {
-        log.info("Admin: Lấy danh sách users, page: {}", pageable.getPageNumber());
         return userRepository.findAll(pageable).map(AdminUserDTO::fromUser);
     }
 
-    /**
-     * Lấy danh sách users theo role
-     */
+    @Override
     @Transactional(readOnly = true)
     public List<AdminUserDTO> getUsersByRole(Role role) {
-        log.info("Admin: Lấy danh sách users theo role: {}", role);
         return userRepository.findByRole(role).stream()
                 .map(AdminUserDTO::fromUser)
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Tìm kiếm users theo keyword (username, email, fullName)
-     */
+    @Override
     @Transactional(readOnly = true)
     public List<AdminUserDTO> searchUsers(String keyword) {
-        log.info("Admin: Tìm kiếm users với keyword: {}", keyword);
         return userRepository.searchByKeyword(keyword).stream()
                 .map(AdminUserDTO::fromUser)
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Lấy thông tin chi tiết user theo ID
-     */
+    @Override
     @Transactional(readOnly = true)
     public AdminUserDTO getUserById(Long id) {
-        log.info("Admin: Lấy thông tin user ID: {}", id);
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy user với ID: " + id));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
         return AdminUserDTO.fromUser(user);
     }
 
-    /**
-     * Cập nhật role của user
-     */
+    @Override
     public AdminUserDTO updateUserRole(Long userId, Role newRole) {
-        log.info("Admin: Cập nhật role user {} thành {}", userId, newRole);
-        
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy user với ID: " + userId));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
 
-        Role oldRole = user.getRole();
         user.setRole(newRole);
         user = userRepository.save(user);
-
-        log.info("Admin: Đã cập nhật role user {} từ {} thành {}", userId, oldRole, newRole);
         return AdminUserDTO.fromUser(user);
     }
 
-    /**
-     * Kích hoạt/vô hiệu hóa user
-     */
+    @Override
     public AdminUserDTO toggleUserEnabled(Long userId) {
-        log.info("Admin: Toggle enabled user ID: {}", userId);
-        
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy user với ID: " + userId));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
 
         user.setEnabled(!user.isEnabled());
         user = userRepository.save(user);
-
-        log.info("Admin: User {} giờ {}", userId, user.isEnabled() ? "enabled" : "disabled");
         return AdminUserDTO.fromUser(user);
     }
 
-    /**
-     * Xóa user (soft delete - chỉ disable)
-     */
+    @Override
     public void deleteUser(Long userId) {
-        log.info("Admin: Xóa user ID: {}", userId);
-        
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("Không tìm thấy user với ID: " + userId));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
 
-        // Không cho phép xóa ADMIN
         if (user.getRole() == Role.ADMIN) {
-            throw new RuntimeException("Không thể xóa tài khoản ADMIN");
+            throw ApiException.forbidden("Cannot delete admin account");
         }
 
         user.setEnabled(false);
         userRepository.save(user);
-        
-        log.info("Admin: Đã vô hiệu hóa user ID: {}", userId);
     }
 
-    /**
-     * Thống kê số lượng users theo role
-     */
+    @Override
     @Transactional(readOnly = true)
-    public UserStatistics getUserStatistics() {
+    public UserStatisticsResponse getUserStatistics() {
         long totalUsers = userRepository.count();
         long adminCount = userRepository.countByRole(Role.ADMIN);
         long teacherCount = userRepository.countByRole(Role.TEACHER);
@@ -136,15 +102,83 @@ public class AdminService {
         long enabledCount = userRepository.countByEnabled(true);
         long disabledCount = userRepository.countByEnabled(false);
 
-        return new UserStatistics(totalUsers, adminCount, teacherCount, studentCount, enabledCount, disabledCount);
+        return new UserStatisticsResponse(totalUsers, adminCount, teacherCount, studentCount, enabledCount, disabledCount);
     }
 
-    public record UserStatistics(
-        long totalUsers,
-        long adminCount,
-        long teacherCount,
-        long studentCount,
-        long enabledCount,
-        long disabledCount
-    ) {}
+    @Override
+    public AdminUserDTO updateUser(Long userId, AdminUpdateUserRequest request) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+
+        if (request.fullName() != null && !request.fullName().isBlank()) {
+            user.setFullName(request.fullName());
+        }
+        if (request.email() != null && !request.email().isBlank()) {
+            if (userRepository.existsByEmailAndIdNot(request.email(), userId)) {
+                throw ApiException.badRequest("Email already in use");
+            }
+            user.setEmail(request.email());
+        }
+        if (request.phoneNumber() != null) {
+            user.setPhoneNumber(request.phoneNumber());
+        }
+        if (request.role() != null) {
+            user.setRole(request.role());
+        }
+        if (request.enabled() != null) {
+            user.setEnabled(request.enabled());
+        }
+        if (request.emailVerified() != null) {
+            user.setEmailVerified(request.emailVerified());
+        }
+
+        user.setUpdatedAt(LocalDateTime.now());
+        user = userRepository.save(user);
+        return AdminUserDTO.fromUser(user);
+    }
+
+    @Override
+    public AdminUserDTO lockUser(Long userId, String reason) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+
+        if (user.getRole() == Role.ADMIN) {
+            throw ApiException.forbidden("Cannot lock admin account");
+        }
+
+        user.setEnabled(false);
+        user.setAccountLocked(true);
+        user.setLockReason(reason);
+        user.setUpdatedAt(LocalDateTime.now());
+        user = userRepository.save(user);
+
+        emailService.sendAccountLockedEmail(user.getEmail(), user.getFullName(), reason);
+
+        return AdminUserDTO.fromUser(user);
+    }
+
+    @Override
+    public AdminUserDTO unlockUser(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+
+        user.setEnabled(true);
+        user.setAccountLocked(false);
+        user.setLockReason(null);
+        user.setUpdatedAt(LocalDateTime.now());
+        user = userRepository.save(user);
+        return AdminUserDTO.fromUser(user);
+    }
+
+    @Override
+    public void hardDeleteUser(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
+
+        if (user.getRole() == Role.ADMIN) {
+            throw ApiException.forbidden("Cannot delete admin account");
+        }
+
+        userRepository.delete(user);
+    }
 }

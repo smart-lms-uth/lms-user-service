@@ -1,4 +1,4 @@
-package uth.edu.vn.lms_user_service.config;
+package uth.edu.vn.lms_user_service.security;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -41,6 +41,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         try {
             final String jwt = authHeader.substring(7);
+            
+            // Only accept access tokens for authentication, not refresh tokens
+            if (jwtUtil.isRefreshToken(jwt)) {
+                filterChain.doFilter(request, response);
+                return;
+            }
+            
             final String username = jwtUtil.extractUsername(jwt);
 
             if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
@@ -57,8 +64,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 }
             }
         } catch (Exception e) {
-            // Token không hợp lệ - tiếp tục mà không authentication
-            logger.warn("JWT token validation failed: " + e.getMessage());
+            // Invalid token - silently ignore
         }
 
         filterChain.doFilter(request, response);

@@ -39,4 +39,6 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     @Query("SELECT u FROM User u WHERE u.role = :role AND u.enabled = true")
     List<User> findActiveUsersByRole(@Param("role") Role role);
+
+    boolean existsByEmailAndIdNot(String email, Long id);
 }

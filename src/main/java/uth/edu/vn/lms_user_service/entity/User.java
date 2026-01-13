@@ -75,6 +75,9 @@ public class User implements UserDetails {
     @Column(name = "address", length = 255)
     private String address;
 
+    @Column(name = "lock_reason", length = 500)
+    private String lockReason;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
@@ -284,5 +287,25 @@ public class User implements UserDetails {
 
     public void setLastLoginAt(LocalDateTime lastLoginAt) {
         this.lastLoginAt = lastLoginAt;
+    }
+
+    public String getLockReason() {
+        return lockReason;
+    }
+
+    public void setLockReason(String lockReason) {
+        this.lockReason = lockReason;
+    }
+
+    public void setPhone(String phone) {
+        this.phoneNumber = phone;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
+    public void setAccountLocked(boolean locked) {
+        this.accountNonLocked = !locked;
     }
 }

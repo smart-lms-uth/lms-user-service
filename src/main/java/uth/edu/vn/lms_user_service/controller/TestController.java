@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/test")
+@RequestMapping("/api/v1/test")
 public class TestController {
 
     @GetMapping("/public")

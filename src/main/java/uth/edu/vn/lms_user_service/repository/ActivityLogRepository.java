@@ -60,6 +60,7 @@ public interface ActivityLogRepository extends MongoRepository<ActivityLog, Stri
     Page<ActivityLog> findByUserIdAndCourseIdAndActivityTypeIn(Long userId, String courseId, List<String> activityTypes, Pageable pageable);
 
     // Find all activities for a course (ordered by timestamp desc for getting latest per user)
-    @Query("{ 'metadata.courseId': ?0 }")
-    List<ActivityLog> findByCourseIdOrderByTimestampDesc(String courseId);
+    // Matches both metadata.courseId and URL patterns like /courses/{courseId}
+    @Query("{ $or: [ { 'metadata.courseId': ?0 }, { 'pageUrl': { $regex: ?1 } } ] }")
+    List<ActivityLog> findByCourseIdOrUrlPattern(String courseId, String urlPattern);
 }

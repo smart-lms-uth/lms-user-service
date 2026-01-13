@@ -5,14 +5,15 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-import uth.edu.vn.lms_user_service.dto.ApiResponse;
-import uth.edu.vn.lms_user_service.dto.UpdateProfileRequest;
-import uth.edu.vn.lms_user_service.dto.UserResponse;
+import org.springframework.web.multipart.MultipartFile;
+import uth.edu.vn.lms_user_service.dto.*;
 import uth.edu.vn.lms_user_service.entity.User;
 import uth.edu.vn.lms_user_service.service.UserService;
+import uth.edu.vn.lms_user_service.service.FileStorageService;
 
 @RestController
 @RequestMapping("/api/v1/users")
@@ -21,9 +22,11 @@ import uth.edu.vn.lms_user_service.service.UserService;
 public class UserController {
 
     private final UserService userService;
+    private final FileStorageService fileStorageService;
 
-    public UserController(UserService userService) {
+    public UserController(UserService userService, FileStorageService fileStorageService) {
         this.userService = userService;
+        this.fileStorageService = fileStorageService;
     }
 
     @GetMapping("/profile")
@@ -111,19 +114,35 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success("Password changed successfully."));
     }
 
-    public record ProfileStatusResponse(boolean profileComplete, boolean hasPassword) {}
-    
-    public record SetPasswordRequest(
-        @jakarta.validation.constraints.NotBlank(message = "Password is required")
-        @jakarta.validation.constraints.Size(min = 6, message = "Password must be at least 6 characters")
-        String password
-    ) {}
-    
-    public record ChangePasswordRequest(
-        @jakarta.validation.constraints.NotBlank(message = "Current password is required")
-        String currentPassword,
-        @jakarta.validation.constraints.NotBlank(message = "New password is required")
-        @jakarta.validation.constraints.Size(min = 6, message = "New password must be at least 6 characters")
-        String newPassword
-    ) {}
+    @PostMapping(value = "/profile/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Upload avatar image")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Avatar uploaded successfully"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid file format or size"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Not authenticated")
+    })
+    public ResponseEntity<ApiResponse<AvatarResponse>> uploadAvatar(
+            Authentication authentication,
+            @RequestParam("file") MultipartFile file) {
+        User user = (User) authentication.getPrincipal();
+        String avatarUrl = fileStorageService.storeAvatar(file, user.getId());
+        userService.updateAvatar(user.getId(), avatarUrl);
+        return ResponseEntity.ok(ApiResponse.success("Avatar uploaded successfully", new AvatarResponse(avatarUrl)));
+    }
+
+    @DeleteMapping("/profile/avatar")
+    @Operation(summary = "Remove avatar image")
+    @ApiResponses(value = {
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Avatar removed"),
+        @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Not authenticated")
+    })
+    public ResponseEntity<ApiResponse<Void>> removeAvatar(Authentication authentication) {
+        User user = (User) authentication.getPrincipal();
+        String currentAvatarUrl = userService.getAvatarUrl(user.getId());
+        if (currentAvatarUrl != null) {
+            fileStorageService.deleteFile(currentAvatarUrl);
+        }
+        userService.updateAvatar(user.getId(), null);
+        return ResponseEntity.ok(ApiResponse.success("Avatar removed successfully", null));
+    }
 }

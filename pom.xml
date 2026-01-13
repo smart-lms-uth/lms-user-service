@@ -50,6 +50,12 @@
             <artifactId>spring-boot-starter-security</artifactId>
         </dependency>
 
+        <!-- Spring Mail -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-mail</artifactId>
+        </dependency>
+
         <!-- OAuth2 Client for Google Login -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -75,10 +81,30 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- Spring Boot DevTools -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-devtools</artifactId>
+            <scope>runtime</scope>
+            <optional>true</optional>
+        </dependency>
+
         <!-- Actuator for health checks and monitoring -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <!-- Prometheus Metrics -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+
+        <!-- AOP for metrics -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
         </dependency>
 
         <!-- Validation -->
@@ -109,6 +135,13 @@
         <dependency>
             <groupId>com.fasterxml.jackson.datatype</groupId>
             <artifactId>jackson-datatype-jsr310</artifactId>
+        </dependency>
+
+        <!-- Rate Limiting with Bucket4j -->
+        <dependency>
+            <groupId>com.bucket4j</groupId>
+            <artifactId>bucket4j-core</artifactId>
+            <version>8.10.1</version>
         </dependency>
 
         <dependency>

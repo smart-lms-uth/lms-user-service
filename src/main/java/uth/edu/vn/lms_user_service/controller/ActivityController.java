@@ -40,12 +40,12 @@ public class ActivityController {
             Authentication authentication,
             @RequestBody ActivityRequest request,
             HttpServletRequest httpRequest) {
-        
+
         Long userId = null;
         if (authentication != null && authentication.getPrincipal() instanceof User) {
             userId = ((User) authentication.getPrincipal()).getId();
         }
-        
+
         ActivityResponse response = activityService.logActivity(userId, request, httpRequest);
         return ResponseEntity.ok(ApiResponse.success("Activity logged", response));
     }
@@ -59,12 +59,12 @@ public class ActivityController {
             Authentication authentication,
             @RequestBody List<ActivityRequest> requests,
             HttpServletRequest httpRequest) {
-        
+
         Long userId = null;
         if (authentication != null && authentication.getPrincipal() instanceof User) {
             userId = ((User) authentication.getPrincipal()).getId();
         }
-        
+
         List<ActivityResponse> responses = activityService.logActivities(userId, requests, httpRequest);
         return ResponseEntity.ok(ApiResponse.success("Activities logged", responses));
     }
@@ -79,7 +79,7 @@ public class ActivityController {
             Authentication authentication,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        
+
         User user = (User) authentication.getPrincipal();
         Page<ActivityResponse> activities = activityService.getUserActivities(user.getId(), page, size);
         return ResponseEntity.ok(ApiResponse.success("Activities retrieved", activities));
@@ -93,7 +93,7 @@ public class ActivityController {
     @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<ApiResponse<List<ActivityResponse>>> getSessionActivities(
             @PathVariable String sessionId) {
-        
+
         List<ActivityResponse> activities = activityService.getSessionActivities(sessionId);
         return ResponseEntity.ok(ApiResponse.success("Session activities retrieved", activities));
     }
@@ -107,7 +107,7 @@ public class ActivityController {
     public ResponseEntity<ApiResponse<ActivityStatsResponse>> getStats(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime start,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime end) {
-        
+
         ActivityStatsResponse stats = activityService.getStats(start, end);
         return ResponseEntity.ok(ApiResponse.success("Statistics retrieved", stats));
     }
@@ -122,7 +122,7 @@ public class ActivityController {
             @PathVariable Long userId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        
+
         Page<ActivityResponse> activities = activityService.getUserActivities(userId, page, size);
         return ResponseEntity.ok(ApiResponse.success("User activities retrieved", activities));
     }
@@ -140,10 +140,11 @@ public class ActivityController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String activityType) {
-        
+
         Page<CourseActivityResponse> activities;
         if (activityType != null && !activityType.isEmpty()) {
-            activities = activityService.getCourseStudentActivitiesByType(studentId, courseId, activityType, page, size);
+            activities = activityService.getCourseStudentActivitiesByType(studentId, courseId, activityType, page,
+                    size);
         } else {
             activities = activityService.getCourseStudentActivities(studentId, courseId, page, size);
         }
@@ -161,8 +162,9 @@ public class ActivityController {
             @PathVariable Long studentId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        
-        Page<CourseActivityResponse> activities = activityService.getAllCourseStudentActivities(studentId, courseId, page, size);
+
+        Page<CourseActivityResponse> activities = activityService.getAllCourseStudentActivities(studentId, courseId,
+                page, size);
         return ResponseEntity.ok(ApiResponse.success("All student course activities retrieved", activities));
     }
 
@@ -174,10 +176,10 @@ public class ActivityController {
     @GetMapping("/course/{courseId}/students/last-access")
     @Operation(summary = "Get last access time for all students in a course")
     @SecurityRequirement(name = "bearerAuth")
-    public ResponseEntity<ApiResponse<java.util.Map<Long, LocalDateTime>>> getCourseStudentsLastAccess(
+    public ResponseEntity<ApiResponse<java.util.Map<Long, java.time.Instant>>> getCourseStudentsLastAccess(
             @PathVariable Long courseId) {
-        
-        java.util.Map<Long, LocalDateTime> lastAccessMap = activityService.getCourseStudentsLastAccess(courseId);
+
+        java.util.Map<Long, java.time.Instant> lastAccessMap = activityService.getCourseStudentsLastAccess(courseId);
         return ResponseEntity.ok(ApiResponse.success("Students last access retrieved", lastAccessMap));
     }
 }

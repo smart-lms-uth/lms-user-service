@@ -26,6 +26,7 @@ public interface UserActivityRepository extends JpaRepository<UserActivity, Long
     // Find by activity type
     Page<UserActivity> findByActivityTypeOrderByTimestampDesc(ActivityType activityType, Pageable pageable);
     
+    
     List<UserActivity> findByActivityTypeAndTimestampBetween(ActivityType activityType, LocalDateTime start, LocalDateTime end);
     
     // Count by type for statistics

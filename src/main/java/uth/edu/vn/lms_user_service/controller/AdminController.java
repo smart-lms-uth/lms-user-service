@@ -3,6 +3,7 @@ package uth.edu.vn.lms_user_service.controller;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
@@ -10,23 +11,20 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import uth.edu.vn.lms_user_service.dto.AdminUserDTO;
+import uth.edu.vn.lms_user_service.dto.ApiResponse;
 import uth.edu.vn.lms_user_service.dto.UpdateRoleRequest;
+import uth.edu.vn.lms_user_service.dto.UserStatisticsResponse;
+import uth.edu.vn.lms_user_service.dto.AdminUpdateUserRequest;
+import uth.edu.vn.lms_user_service.dto.LockUserRequest;
 import uth.edu.vn.lms_user_service.entity.Role;
 import uth.edu.vn.lms_user_service.service.AdminService;
-import uth.edu.vn.lms_user_service.service.AdminService.UserStatistics;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
-/**
- * Controller cho Admin quản lý users
- * Chỉ ADMIN mới có quyền truy cập
- */
 @RestController
-@RequestMapping("/api/admin")
+@RequestMapping("/api/v1/admin")
 @PreAuthorize("hasRole('ADMIN')")
-@Tag(name = "Admin", description = "API quản lý users dành cho Admin")
+@Tag(name = "Admin", description = "User management APIs for Admin")
 @SecurityRequirement(name = "bearerAuth")
 public class AdminController {
 
@@ -37,79 +35,95 @@ public class AdminController {
     }
 
     @GetMapping("/users")
-    @Operation(summary = "Lấy danh sách tất cả users (phân trang)")
-    public ResponseEntity<Page<AdminUserDTO>> getAllUsers(
+    @Operation(summary = "Get all users with pagination")
+    public ResponseEntity<ApiResponse<Page<AdminUserDTO>>> getAllUsers(
             @PageableDefault(size = 20) Pageable pageable) {
-        return ResponseEntity.ok(adminService.getAllUsers(pageable));
+        return ResponseEntity.ok(ApiResponse.success(adminService.getAllUsers(pageable)));
     }
 
     @GetMapping("/users/role/{role}")
-    @Operation(summary = "Lấy danh sách users theo role")
-    public ResponseEntity<List<AdminUserDTO>> getUsersByRole(@PathVariable Role role) {
-        return ResponseEntity.ok(adminService.getUsersByRole(role));
+    @Operation(summary = "Get users by role")
+    public ResponseEntity<ApiResponse<List<AdminUserDTO>>> getUsersByRole(@PathVariable Role role) {
+        return ResponseEntity.ok(ApiResponse.success(adminService.getUsersByRole(role)));
     }
 
     @GetMapping("/users/search")
-    @Operation(summary = "Tìm kiếm users theo keyword")
-    public ResponseEntity<List<AdminUserDTO>> searchUsers(@RequestParam String keyword) {
-        return ResponseEntity.ok(adminService.searchUsers(keyword));
+    @Operation(summary = "Search users by keyword")
+    public ResponseEntity<ApiResponse<List<AdminUserDTO>>> searchUsers(@RequestParam String keyword) {
+        return ResponseEntity.ok(ApiResponse.success(adminService.searchUsers(keyword)));
     }
 
     @GetMapping("/users/{id}")
-    @Operation(summary = "Lấy thông tin chi tiết user")
-    public ResponseEntity<AdminUserDTO> getUserById(@PathVariable Long id) {
-        return ResponseEntity.ok(adminService.getUserById(id));
+    @Operation(summary = "Get user details by ID")
+    public ResponseEntity<ApiResponse<AdminUserDTO>> getUserById(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.success(adminService.getUserById(id)));
     }
 
     @PutMapping("/users/{id}/role")
-    @Operation(summary = "Cập nhật role của user")
-    public ResponseEntity<Map<String, Object>> updateUserRole(
+    @Operation(summary = "Update user role")
+    public ResponseEntity<ApiResponse<AdminUserDTO>> updateUserRole(
             @PathVariable Long id,
             @RequestBody UpdateRoleRequest request) {
         AdminUserDTO updated = adminService.updateUserRole(id, request.role());
-        
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("message", "Đã cập nhật role thành " + request.role());
-        response.put("user", updated);
-        
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success("Role updated to " + request.role(), updated));
     }
 
     @PatchMapping("/users/{id}/toggle-enabled")
-    @Operation(summary = "Bật/tắt trạng thái hoạt động của user")
-    public ResponseEntity<Map<String, Object>> toggleUserEnabled(@PathVariable Long id) {
+    @Operation(summary = "Toggle user enabled status")
+    public ResponseEntity<ApiResponse<AdminUserDTO>> toggleUserEnabled(@PathVariable Long id) {
         AdminUserDTO updated = adminService.toggleUserEnabled(id);
-        
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("message", updated.enabled() ? "Đã kích hoạt user" : "Đã vô hiệu hóa user");
-        response.put("user", updated);
-        
-        return ResponseEntity.ok(response);
+        String message = updated.enabled() ? "User enabled" : "User disabled";
+        return ResponseEntity.ok(ApiResponse.success(message, updated));
     }
 
     @DeleteMapping("/users/{id}")
-    @Operation(summary = "Xóa user (soft delete)")
-    public ResponseEntity<Map<String, Object>> deleteUser(@PathVariable Long id) {
+    @Operation(summary = "Delete user (soft delete)")
+    public ResponseEntity<ApiResponse<Void>> deleteUser(@PathVariable Long id) {
         adminService.deleteUser(id);
-        
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("message", "Đã vô hiệu hóa user");
-        
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(ApiResponse.success("User deleted", null));
+    }
+
+    @PutMapping("/users/{id}")
+    @Operation(summary = "Update user information")
+    public ResponseEntity<ApiResponse<AdminUserDTO>> updateUser(
+            @PathVariable Long id,
+            @Valid @RequestBody AdminUpdateUserRequest request) {
+        AdminUserDTO updated = adminService.updateUser(id, request);
+        return ResponseEntity.ok(ApiResponse.success("User updated", updated));
+    }
+
+    @PostMapping("/users/{id}/lock")
+    @Operation(summary = "Lock user account")
+    public ResponseEntity<ApiResponse<AdminUserDTO>> lockUser(
+            @PathVariable Long id,
+            @RequestBody LockUserRequest request) {
+        AdminUserDTO updated = adminService.lockUser(id, request.reason());
+        return ResponseEntity.ok(ApiResponse.success("User account locked", updated));
+    }
+
+    @PostMapping("/users/{id}/unlock")
+    @Operation(summary = "Unlock user account")
+    public ResponseEntity<ApiResponse<AdminUserDTO>> unlockUser(@PathVariable Long id) {
+        AdminUserDTO updated = adminService.unlockUser(id);
+        return ResponseEntity.ok(ApiResponse.success("User account unlocked", updated));
+    }
+
+    @DeleteMapping("/users/{id}/hard")
+    @Operation(summary = "Permanently delete user (hard delete)")
+    public ResponseEntity<ApiResponse<Void>> hardDeleteUser(@PathVariable Long id) {
+        adminService.hardDeleteUser(id);
+        return ResponseEntity.ok(ApiResponse.success("User permanently deleted", null));
     }
 
     @GetMapping("/statistics")
-    @Operation(summary = "Thống kê số lượng users")
-    public ResponseEntity<UserStatistics> getUserStatistics() {
-        return ResponseEntity.ok(adminService.getUserStatistics());
+    @Operation(summary = "Get user statistics")
+    public ResponseEntity<ApiResponse<UserStatisticsResponse>> getUserStatistics() {
+        return ResponseEntity.ok(ApiResponse.success(adminService.getUserStatistics()));
     }
 
     @GetMapping("/roles")
-    @Operation(summary = "Lấy danh sách tất cả roles")
-    public ResponseEntity<Role[]> getAllRoles() {
-        return ResponseEntity.ok(Role.values());
+    @Operation(summary = "Get all available roles")
+    public ResponseEntity<ApiResponse<Role[]>> getAllRoles() {
+        return ResponseEntity.ok(ApiResponse.success(Role.values()));
     }
 }
