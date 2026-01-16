@@ -14,15 +14,12 @@ public class RateLimitConfig {
 
     private final Map<String, Bucket> buckets = new ConcurrentHashMap<>();
 
-    // Login: 10000 attempts per minute per IP (development mode)
     private static final int LOGIN_LIMIT = 10000;
     private static final Duration LOGIN_DURATION = Duration.ofMinutes(1);
 
-    // API: 100000 requests per minute per user (development mode)
     private static final int API_LIMIT = 100000;
     private static final Duration API_DURATION = Duration.ofMinutes(1);
 
-    // Registration: 10000 per hour per IP (development mode)
     private static final int REGISTER_LIMIT = 10000;
     private static final Duration REGISTER_DURATION = Duration.ofHours(1);
 
